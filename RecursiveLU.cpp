@@ -50,12 +50,11 @@ void Show_vec(const int m, int *a)
 
 int dgetrfr(const int m, const int n, double *A, const int lda, int *piv)
 {
-	cout << "n = " << n << endl;
 	int info = -1;
 
 	if (n == 1) // Single column, recursion stops
 	{
-		int idx = cblas_idamax(m,A,1);      // find maximum
+		int idx = cblas_idamax(m,A,1);      // return the 0-base index of the maximum value
 		*piv = idx+1;
 
 		double tmp = *(A+idx);
@@ -73,7 +72,7 @@ int dgetrfr(const int m, const int n, double *A, const int lda, int *piv)
 		int nleft = n / 2;
 		int nright = n - nleft;
 
-		info = dgetrfr(m,nleft,A,lda,piv);           // recursive call to factor left half
+		info = dgetrfr(m,nleft,A,lda,piv);   // recursive call to factor left half
 		if (info != -1)
 			return info;
 
@@ -101,7 +100,6 @@ int dgetrfr(const int m, const int n, double *A, const int lda, int *piv)
 		// pivoting backward
 		assert(0 == LAPACKE_dlaswp(LAPACK_COL_MAJOR, nleft, A, lda, nleft+1, n, piv, 1));
 	}
-
 	return info;
 }
 
@@ -130,14 +128,7 @@ int main(const int argc, const char **argv)
 	int *piv = new int [m];          // permutation vector
 	const int lda = m;
 
-//	Gen_rand_mat(m,n,A);             // Randomize elements of orig. matrix
-
-	A[0] = 2.0; A[1] = 4.0; A[2] = 1.0;
-	A[3] = 1.0; A[4] = 2.0; A[5] = 3.0;
-	A[6] = 3.0; A[7] = 5.0; A[8] = 1.0;
-
-	Show_mat(m,n,A);
-	Show_vec(m,piv);
+	Gen_rand_mat(m,n,A);             // Randomize elements of orig. matrix
 
 	////////// Debug mode //////////
 	#ifdef DEBUG
@@ -150,14 +141,15 @@ int main(const int argc, const char **argv)
 	double timer = omp_get_wtime();   // Timer start
 
 	int info = dgetrfr(m,n,A,lda,piv);
+	if (info != -1)
+	{
+		cout << "Info = " << info << endl;
+		return EXIT_FAILURE;
+	}
 
 	timer = omp_get_wtime() - timer;   // Timer stop
 
-	Show_mat(m,n,A);
-	Show_vec(m,piv);
-
 	cout << "m = " << m << ", n = " << n << ", time = " << timer << endl;
-	cout << "Info = " << info << endl;
 
 	////////// Debug mode //////////
 	#ifdef DEBUG
@@ -178,6 +170,7 @@ int main(const int argc, const char **argv)
 
 	// Apply interchanges to original matrix A
 	assert(0 == LAPACKE_dlaswp(MKL_COL_MAJOR, n, OA, m, 1, n, piv, 1));
+
 
 	cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
 			m, n, n, -1.0, A, m, U, n, 1.0, OA, m);
